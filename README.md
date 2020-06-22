@@ -106,3 +106,114 @@ $ curl -LO http://archive.ubuntu.com/ubuntu/pool/main/libf/libffi/libffi6_3.2.1-
 $ sudo dpkg -i libffi6_3.2.1-9_amd64.deb 
 $ sudo dpkg -i Conduktor-2.3.5.deb 
 ```
+
+## Step 5
+Install PostgreSQL for Linux(Ubuntu 20.04) and create the desired user and database.
+```
+$ sudo apt-get install postgresql 
+```
+Run PostgreSQL.
+```
+$ sudo service postgresql start
+```
+After the installation, a postgres user with administration priviliges was created with empty default password. 
+As the first step, we need to set a password for postgres.
+``` 
+$ sudo -u postgres psql postgres
+postgres=# \password postgres
+Enter new password: 
+Enter it again: 
+```
+Create a new user and set his role in databases.
+```
+postgres=# CREATE USER root WITH PASSWORD 'root';
+postgres=# ALTER ROLE root CREATEROLE CREATEDB;
+```
+or use the following commands:
+``` 
+$ sudo -u postgres createuser --interactive --password root
+Shall the new role be a superuser? (y/n) n
+Shall the new role be allowed to create databases? (y/n) y
+Shall the new role be allowed to create more new roles? (y/n) y
+Password:
+```
+Create a new database, which is going to be owned by root.
+``` 
+$ sudo -u postgres createdb testdb -O user12
+```
+Restart PostgreSQL to enable the changes.
+``` 
+$ sudo service postgresql restart
+```
+Enter to the database.
+``` 
+$ sudo -u root psql testdb
+psql (12.2 (Ubuntu 12.2-4))
+Type "help" for help.
+
+testdb=>
+```
+or use the following commands:
+``` 
+$ psql -U root -d testdb -W
+Password for user root: 
+psql (9.5.10)
+Type "help" for help.
+
+testdb=>
+```
+Now we can use the psql tool to connect to the database.
+
+## Step 6
+Create a Maven project and add dependencies.
+```xml
+<dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+</dependencies>
+```
+
+## Step 7
+Fill the file application.properties with configurations for postgreSQL and kafka.
+```properties
+# Database & datasource
+server.port=9090
+spring.datasource.url=jdbc:postgresql://localhost:5432/testdb
+spring.datasource.username=root
+spring.datasource.password=root
+spring.datasource.driverClassName=org.postgresql.Driver
+spring.datasource.platform=postgres
+spring.jpa.database=POSTGRESQL
+spring.datasource.initialization-mode=always
+# JPA config
+spring.jpa.generate-ddl=true
+#spring.jpa.hibernate.ddl-auto=none
+# Kafka
+spring.kafka.consumer.group-id=app.3
+spring.kafka.bootstrap-servers=localhost:9092
+spring.kafka.template.default-topic=test-topic
+```
