@@ -1,21 +1,21 @@
 package com.github58.camelya.ubuntu.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
+import lombok.ToString;
 
 import javax.persistence.*;
 import java.io.Serializable;
 import java.util.Set;
 
 /**
- * Class Student represents a POJO-object and an entity of the database.
+ * Class Student represents a POJO-object and a table named "students" in the database.
  *
  * @author Kamila Meshcheryakova
  * created 22.06.2020
  */
-@Getter
-@Setter
+@Data
+@ToString(exclude = "assignments")
 @Entity
 @Table(name = "students")
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
@@ -35,6 +35,17 @@ public class Student implements Serializable {
 
     @OneToMany(mappedBy = "student", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Set<Assignment> assignments;
+
+    @OneToOne
+    @JoinColumn(name = "address_id")
+    private Address address;
+
+    @ManyToMany
+    @JoinTable(name = "student_teacher",
+            joinColumns = @JoinColumn(name = "student_id", referencedColumnName = "ID"),
+            inverseJoinColumns = @JoinColumn(name = "teacher_id", referencedColumnName = "ID")
+    )
+    private Set<Teacher> teachers;
 
     public Student() {}
 

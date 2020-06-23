@@ -40,6 +40,16 @@ public class StudentController {
         }
     }
 
+    @GetMapping("/student/{age}")
+    public Student getStudentByAgeLessThan(@PathVariable int age) {
+        Optional<Student> optStudent = studentRepository.findStudentByAgeLessThan(age);
+        if (optStudent.isPresent()) {
+            return optStudent.get();
+        } else {
+            throw new NotFoundException("Student not found with age less than " + age);
+        }
+    }
+
     @PostMapping("/student")
     public Student createStudent(@Valid @RequestBody Student student) {
         Student savedStudent = studentRepository.save(student);

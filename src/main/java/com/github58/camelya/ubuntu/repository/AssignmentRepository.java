@@ -7,7 +7,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 /**
- * Класс AssignmentRepository
+ * Interface AssignmentRepository represents connection to PostgreSQL.
  *
  * @author Kamila Meshcheryakova
  * created 22.06.2020

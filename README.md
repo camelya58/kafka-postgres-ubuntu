@@ -165,7 +165,12 @@ testdb=>
 Now we can use the psql tool to connect to the database.
 
 ## Step 6
-Create a Maven project and add dependencies.
+Create a Maven project and add dependencies: [Spring Boot Starter Web](https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-starter-web/2.3.1.RELEASE),
+[Apache Kafka](https://mvnrepository.com/artifact/org.apache.kafka/kafka_2.12/2.5.0),
+[Spring Boot Starter Data Jpa](https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-starter-data-jpa/2.3.1.RELEASE),
+[Spring Boot Starter Validation](https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-starter-validation/2.3.1.RELEASE),
+[PostgreSQl](https://mvnrepository.com/artifact/org.postgresql/postgresql/42.2.14),
+[Lombok](https://mvnrepository.com/artifact/org.projectlombok/lombok/1.18.12).
 ```xml
 <dependencies>
         <dependency>
@@ -211,9 +216,118 @@ spring.jpa.database=POSTGRESQL
 spring.datasource.initialization-mode=always
 # JPA config
 spring.jpa.generate-ddl=true
-#spring.jpa.hibernate.ddl-auto=none
+spring.jpa.hibernate.ddl-auto=update
 # Kafka
 spring.kafka.consumer.group-id=app.3
 spring.kafka.bootstrap-servers=localhost:9092
 spring.kafka.template.default-topic=test-topic
 ```
+Phrase "spring.jpa.generate-ddl=true" means that you want jpa creates tables from your entities.
+
+Phrase "spring.jpa.hibernate.ddl-auto=update" means that you want jpa updates the schema if necessary. 
+The default value is "create-drop" that means to create and then destroy the schema at the end of the session.
+
+In a JPA-based app, you can choose to let Hibernate create the schema or use schema.sql, but you cannot do both. 
+Make sure to disable spring.jpa.hibernate.ddl-auto if you use schema.sql.
+
+Spring Boot automatically creates the schema of an embedded DataSource. 
+Phrase "spring.datasource.initialization-mode=always" meant that you want it from spring boot.
+
+## Step 8
+Create main class and set there a consumer using annotations @EnableKafka for class and @KafkaListener for method.
+```java
+@EnableKafka
+@SpringBootApplication
+public class UbuntuApplication {
+
+    @KafkaListener(topics = "test-topic")
+    public void messageListener(ConsumerRecord<Long, Object> record) {
+        System.out.println(record.partition());
+        System.out.println(record.key());
+        System.out.println(record.value());
+        System.out.println(record.topic());
+    }
+
+    public static void main(String[] args) {
+        SpringApplication.run(UbuntuApplication.class, args);
+    }
+}
+```
+Then create configuration for Kafka Consumer.
+```java
+@Configuration
+public class KafkaConsumerConfig {
+    @Value("${spring.kafka.bootstrap-servers}")
+    private String kafkaServer;
+    @Value("${spring.kafka.consumer.group-id}")
+    private String kafkaGroupId;
+    @Bean
+    public Map<String, Object> consumerConfigs() {
+        Map<String, Object> props = new HashMap<>();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaServer);
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, LongDeserializer.class);
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, kafkaGroupId);
+        return props;
+    }
+    @Bean
+    public KafkaListenerContainerFactory<?> kafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<Long, Object> factory =
+                new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(consumerFactory());
+        return factory;
+    }
+    @Bean
+    public ConsumerFactory<Long, Object> consumerFactory() {
+        return new DefaultKafkaConsumerFactory<>(consumerConfigs());
+    }
+}
+```
+
+## Step 9 
+Create class KafkaRepository and set there a producer using the object of KafkaTemplate and method "send" with parameters.
+```java
+@RequiredArgsConstructor
+@Repository
+public class KafkaRepository {
+
+    @Value("${spring.kafka.template.default-topic}")
+    private String kafkaTopic;
+
+
+    private final KafkaTemplate<Long, Object> kafkaTemplate;
+
+    public void sendMessage(Long msgId, Object data) {
+        ListenableFuture<SendResult<Long, Object>> future = kafkaTemplate.send(kafkaTopic, msgId, data);
+        future.addCallback(System.out::println, System.err::println);
+        kafkaTemplate.flush();
+    }
+}
+```
+Then create configuration for Kafka Producer.
+```java
+@Configuration
+public class KafkaProducerConfig {
+    @Value("${spring.kafka.bootstrap-servers}")
+    private String kafkaServer;
+    @Bean
+    public Map<String, Object> producerConfigs() {
+        Map<String, Object> props = new HashMap<>();
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaServer);
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, LongSerializer.class);
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+        return props;
+    }
+    @Bean
+    public ProducerFactory<Long, Object> producerFactory() {
+        return new DefaultKafkaProducerFactory<>(producerConfigs());
+    }
+    @Bean
+    public KafkaTemplate<Long, Object> kafkaTemplate() {
+        return new KafkaTemplate<>(producerFactory());
+    }
+}
+```
+
+## Step 10
+Create models.
