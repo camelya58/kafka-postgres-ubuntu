@@ -37,7 +37,8 @@ public class Address {
     @Column(name = "flat_number")
     private int flatNumber;
 
-    @OneToOne(mappedBy = "address")
+    @OneToOne
+    @JoinColumn(name = "student_id")
     @JsonIgnore
     private Student student;
 }

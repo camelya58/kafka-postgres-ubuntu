@@ -33,6 +33,10 @@ public class Assignment implements Serializable {
     @Column(name = "grade")
     private int grade;
 
+    @OneToOne(mappedBy = "assignment", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
+    private Teacher teacher;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "student_id", nullable = false)
     @JsonIgnore

@@ -44,7 +44,7 @@ public class AddressController {
         return savedAddress;
     }
 
-    @PutMapping("/student/{studentId}/address{addressId}")
+    @PutMapping("/student/{studentId}/address/{addressId}")
     public Address updateAddress(@PathVariable Long studentId,
                                        @PathVariable Long addressId,
                                        @Valid @RequestBody Address addressUpdated) {
