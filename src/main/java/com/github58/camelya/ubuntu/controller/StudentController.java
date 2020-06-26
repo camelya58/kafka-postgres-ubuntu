@@ -79,8 +79,8 @@ public class StudentController {
     }
 
     @PutMapping("/student/{id}")
-    public Student updateStudent (@PathVariable Long id,
-                                  @Valid @RequestBody Student studentUpdated) {
+    public Student updateStudent(@PathVariable Long id,
+                                 @Valid @RequestBody Student studentUpdated) {
         return studentRepository.findById(id)
                 .map(student -> {
                     student.setName(studentUpdated.getName());
@@ -90,7 +90,7 @@ public class StudentController {
     }
 
     @DeleteMapping("/student/{id}")
-    public String deleteStudent (@PathVariable Long id) {
+    public String deleteStudent(@PathVariable Long id) {
         return studentRepository.findById(id)
                 .map(student -> {
                     studentRepository.delete(student);

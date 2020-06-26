@@ -1,7 +1,9 @@
 package com.github58.camelya.ubuntu.controller;
 
+import com.github58.camelya.ubuntu.exception.AlreadyExistsException;
 import com.github58.camelya.ubuntu.exception.NotFoundException;
 import com.github58.camelya.ubuntu.model.Address;
+import com.github58.camelya.ubuntu.model.Student;
 import com.github58.camelya.ubuntu.repository.AddressRepository;
 import com.github58.camelya.ubuntu.repository.KafkaRepository;
 import com.github58.camelya.ubuntu.repository.StudentRepository;
@@ -34,21 +36,22 @@ public class AddressController {
 
     @PostMapping("/student/{studentId}/address")
     public Address addAddress(@PathVariable Long studentId,
-                                    @Valid @RequestBody Address address) {
-        Address savedAddress = studentRepository.findById(studentId)
-                .map(student -> {
-                    address.setStudent(student);
-                    return addressRepository.save(address);
-                }).orElseThrow(() -> new NotFoundException("Student not found!"));
-        kafkaRepository.sendMessage(savedAddress.getId(), savedAddress);
-        return savedAddress;
+                              @Valid @RequestBody Address address) {
+        Student optStudent = studentRepository.findById(studentId).
+                orElseThrow(() -> new NotFoundException("Student not found!"));
+        if (optStudent.getAddress() == null) {
+            address.setStudent(optStudent);
+            Address savedAddress = addressRepository.save(address);
+            kafkaRepository.sendMessage(savedAddress.getId(), savedAddress);
+            return savedAddress;
+        } else throw new AlreadyExistsException("This student has already had address!");
     }
 
     @PutMapping("/student/{studentId}/address/{addressId}")
     public Address updateAddress(@PathVariable Long studentId,
-                                       @PathVariable Long addressId,
-                                       @Valid @RequestBody Address addressUpdated) {
-        if(!studentRepository.existsById(studentId)) {
+                                 @PathVariable Long addressId,
+                                 @Valid @RequestBody Address addressUpdated) {
+        if (!studentRepository.existsById(studentId)) {
             throw new NotFoundException("Student not found!");
         }
         return addressRepository.findById(addressId)
@@ -64,8 +67,8 @@ public class AddressController {
 
     @DeleteMapping("/student/{studentId}/address{addressId}")
     public String deleteAddress(@PathVariable Long studentId,
-                                   @PathVariable Long addressId) {
-        if(!studentRepository.existsById(studentId)) {
+                                @PathVariable Long addressId) {
+        if (!studentRepository.existsById(studentId)) {
             throw new NotFoundException("Student not found!");
         }
         return addressRepository.findById(addressId)

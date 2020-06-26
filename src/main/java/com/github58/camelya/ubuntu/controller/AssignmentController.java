@@ -50,7 +50,7 @@ public class AssignmentController {
     public Assignment updateAssignment(@PathVariable Long studentId,
                                        @PathVariable Long assignmentId,
                                        @Valid @RequestBody Assignment assignmentUpdated) {
-        if(!studentRepository.existsById(studentId)) {
+        if (!studentRepository.existsById(studentId)) {
             throw new NotFoundException("Student not found!");
         }
         return assignmentRepository.findById(assignmentId)
@@ -64,7 +64,7 @@ public class AssignmentController {
     @DeleteMapping("/student/{studentId}/assignment/{assignmentId}")
     public String deleteAssignment(@PathVariable Long studentId,
                                    @PathVariable Long assignmentId) {
-        if(!studentRepository.existsById(studentId)) {
+        if (!studentRepository.existsById(studentId)) {
             throw new NotFoundException("Student not found!");
         }
         return assignmentRepository.findById(assignmentId)

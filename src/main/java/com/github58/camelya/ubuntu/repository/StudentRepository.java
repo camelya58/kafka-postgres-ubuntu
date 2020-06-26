@@ -15,7 +15,9 @@ import java.util.Set;
  * created 22.06.2020
  */
 @Repository
+@SuppressWarnings("unused")
 public interface StudentRepository extends JpaRepository<Student, Long> {
+
     Set<Student> findStudentByAgeLessThan(int age);
 
     Set<Student> findStudentsByAddressCity(String city);
@@ -35,5 +37,3 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
             "ON s.id=a.student_id where a.name = :assignmentName", nativeQuery = true)
     Set<Student> findStudentsByAssignmentName(String assignmentName);
 }
-//   SELECT s.id, s.age, s.name FROM Student s JOIN Assignment a " +
-// "ON s.id=a.student.id where a.id = :assignmentId

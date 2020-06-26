@@ -3,6 +3,7 @@ package com.github58.camelya.ubuntu.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import javax.persistence.*;
@@ -18,8 +19,8 @@ import java.io.Serializable;
 @Setter
 @Entity
 @Table(name = "assignments")
+@NoArgsConstructor
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
-@SuppressWarnings("unused")
 public class Assignment implements Serializable {
     private static final long serialVersionUID = 1L;
 
@@ -41,11 +42,4 @@ public class Assignment implements Serializable {
     @JoinColumn(name = "student_id", nullable = false)
     @JsonIgnore
     private Student student;
-
-    public Assignment() {}
-
-    public Assignment(String name, int grade) {
-        this.name = name;
-        this.grade = grade;
-    }
 }

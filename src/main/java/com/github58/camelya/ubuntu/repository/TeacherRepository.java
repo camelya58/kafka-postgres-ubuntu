@@ -15,9 +15,10 @@ import java.util.Set;
  * created 23.06.2020
  */
 @Repository
+@SuppressWarnings("unconfigured")
 public interface TeacherRepository extends JpaRepository<Teacher, Long> {
     @Modifying
-    @Query(value = "SELECT t.id, t.name, t.assignment_id FROM teachers t left outer JOIN student_teacher s " +
-            "ON t.id=s.teacher_id where s.student_id = :studentId", nativeQuery = true)
+    @Query(value = "SELECT t.id, t.name, t.assignment_id FROM teachers t left outer JOIN student_teacher st " +
+            "ON t.id=st.teacher_id where st.student_id = :studentId", nativeQuery = true)
     Set<Teacher> findTeachersByStudentId(Long studentId);
 }

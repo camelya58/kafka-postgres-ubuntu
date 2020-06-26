@@ -221,6 +221,9 @@ spring.jpa.hibernate.ddl-auto=update
 spring.kafka.consumer.group-id=app.3
 spring.kafka.bootstrap-servers=localhost:9092
 spring.kafka.template.default-topic=test-topic
+# logging
+#logging.level.root=DEBUG
+#logging.level.org.hibernate.SQL=DEBUG
 ```
 Phrase "spring.jpa.generate-ddl=true" means that you want jpa creates tables from your entities.
 
@@ -228,10 +231,12 @@ Phrase "spring.jpa.hibernate.ddl-auto=update" means that you want jpa updates th
 The default value is "create-drop" that means to create and then destroy the schema at the end of the session.
 
 In a JPA-based app, you can choose to let Hibernate create the schema or use schema.sql, but you cannot do both. 
-Make sure to disable spring.jpa.hibernate.ddl-auto if you use schema.sql.
+Make sure to disable spring.jpa.hibernate.ddl-auto if you use a schema.sql.
 
 Spring Boot automatically creates the schema of an embedded DataSource. 
 Phrase "spring.datasource.initialization-mode=always" meant that you want it from spring boot.
+
+Phrase "logging.level.org.hibernate.SQL=DEBUG" allows to see sql query created by jpa for you.
 
 ## Step 8
 Create main class and set there a consumer using annotations @EnableKafka for class and @KafkaListener for method.
@@ -331,3 +336,224 @@ public class KafkaProducerConfig {
 
 ## Step 10
 Create models.
+To describe all kind of relations create 4 models: Student, Address, Assignment, Teacher.
+```java
+@Getter
+@Setter
+@Entity
+@Table(name = "students")
+@NoArgsConstructor
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+public class Student implements Serializable {
+    private static final long serialVersionUID = 1L;
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "name")
+    private String name;
+
+    @Column(name = "age")
+    private int age;
+
+    @OneToMany(mappedBy = "student", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    private Set<Assignment> assignments;
+
+    @OneToOne(mappedBy = "student", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Address address;
+
+    @ManyToMany
+    @JoinTable(name = "student_teacher",
+            joinColumns = @JoinColumn(name = "student_id", referencedColumnName = "ID"),
+            inverseJoinColumns = @JoinColumn(name = "teacher_id", referencedColumnName = "ID")
+    )
+    private Set<Teacher> teachers;
+
+    public void addTeacher(Teacher teacher) {
+        teachers.add(teacher);
+    }
+}
+```
+### 10.1 OneToOne
+Bidirectional relations  between a student and an address or a teacher and an assignment.
+
+Class Student has following command mappedBy = "student", 
+this attribute is used to define the referencing side (non-owning side) of the relationship.
+```java
+   @OneToOne(mappedBy = "student", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Address address;
+```
+Class Address has a special column with student id.
+```java
+    @OneToOne
+    @JoinColumn(name = "student_id")
+    @JsonIgnore
+    private Student student;
+```
+Class Teacher has a special column with assignment id.
+```java
+    @OneToOne
+    @JoinColumn(name = "assignment_id")
+    private Assignment assignment;
+```    
+Class Assignment has following command mappedBy = "assignment",
+this attribute is used to define the referencing side (non-owning side) of the relationship.
+```java
+    @OneToOne(mappedBy = "assignment", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
+    private Teacher teacher;
+```
+Annotation @JsonIgnore allows to ignore nested data.
+
+### 10.2 OneToMany and ManyToOne
+Bidirectional relations a student and assignments.
+
+Class Student has following command mappedBy = "student", 
+this attribute is used to define the referencing side (non-owning side) of the relationship.
+```java
+    @OneToMany(mappedBy = "student", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    private Set<Assignment> assignments;
+```
+
+Class Assignment has a special column with student id.
+```java
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "student_id", nullable = false)
+    @JsonIgnore
+    private Student student;
+```
+### 10.3 ManyToMany
+Bidirectional relations between students and teachers.
+
+Class Student has an annotation @JoinTable which allows to add a new table with given name ang columns.
+```java
+    @ManyToMany
+    @JoinTable(name = "student_teacher",
+            joinColumns = @JoinColumn(name = "student_id", referencedColumnName = "ID"),
+            inverseJoinColumns = @JoinColumn(name = "teacher_id", referencedColumnName = "ID")
+    )
+    private Set<Teacher> teachers;
+```
+Class Teacher has following command mappedBy = "teachers", 
+this attribute is used to define the referencing side (non-owning side) of the relationship.
+```java
+    @ManyToMany(fetch = FetchType.LAZY, mappedBy = "teachers")
+    @JsonIgnore
+    private Set<Student> students;
+```
+
+## Step 11
+Create repositories for all models.
+```java
+@Repository
+@SuppressWarnings("unused")
+public interface StudentRepository extends JpaRepository<Student, Long> {
+
+    Set<Student> findStudentByAgeLessThan(int age);
+
+    Set<Student> findStudentsByAddressCity(String city);
+
+    @Modifying
+    @Query(value = "SELECT s.id, s.age, s.name FROM students s left outer JOIN student_teacher t " +
+            "ON s.id=t.student_id where t.teacher_id = :teacherId", nativeQuery = true)
+    Set<Student> findStudentsByTeacherId(Long teacherId);
+
+    @Modifying
+    @Query(value = "SELECT s.id, s.age, s.name FROM students s left outer JOIN assignments a " +
+            "ON s.id=a.student_id where a.id = :assignmentId", nativeQuery = true)
+    Set<Student> findStudentsByAssignmentId(Long assignmentId);
+
+    @Modifying
+    @Query(value = "SELECT s.id, s.age, s.name FROM students s left outer JOIN assignments a " +
+            "ON s.id=a.student_id where a.name = :assignmentName", nativeQuery = true)
+    Set<Student> findStudentsByAssignmentName(String assignmentName);
+}
+```
+You can use jpa commands or SQL queries.
+
+## Step 12
+Create controllers for each model with CRUD operations using the logic and dependencies between models. 
+```java
+@RestController
+@RequestMapping("/api")
+@RequiredArgsConstructor
+public class TeacherController {
+
+    private final TeacherRepository teacherRepository;
+    private final AssignmentRepository assignmentRepository;
+    private final StudentRepository studentRepository;
+    private final KafkaRepository kafkaRepository;
+
+    @GetMapping("/student/{studentId}/teachers")
+    public Set<Teacher> getTeachersByStudentId(@PathVariable Long studentId) {
+        if (!studentRepository.existsById(studentId)) {
+            throw new NotFoundException("Student not found!");
+        }
+        return teacherRepository.findTeachersByStudentId(studentId);
+    }
+
+    @GetMapping("/teacher/{id}")
+    public Teacher getTeacherById(@PathVariable Long id) {
+        return teacherRepository.findById(id).
+                orElseThrow(() -> new NotFoundException("Teacher not found with id " + id));
+    }
+
+    @PostMapping("/assignment/{assignmentId}/teacher")
+    public Teacher addTeacherByAssignmentId(@PathVariable Long assignmentId,
+                                            @Valid @RequestBody Teacher teacher) {
+
+        Assignment assignment = assignmentRepository.findById(assignmentId).
+                orElseThrow(() -> new NotFoundException("Assignment not found!"));
+        if (assignment.getTeacher() == null) {
+            teacher.setAssignment(assignment);
+            Teacher savedTeacher = teacherRepository.save(teacher);
+            Set<Student> students = studentRepository.findStudentsByAssignmentName(assignment.getName());
+            savedTeacher.setStudents(students);
+            for (Student s : students) {
+                s.addTeacher(savedTeacher);
+                studentRepository.save(s);
+            }
+            kafkaRepository.sendMessage(savedTeacher.getId(), savedTeacher);
+            return savedTeacher;
+        } else throw new AlreadyExistsException("This assignment has already had a teacher!");
+    }
+
+    @PutMapping("/teacher/{id}")
+    public Teacher updateTeacher(@PathVariable Long id,
+                                 @Valid @RequestBody Teacher teacherUpdated) {
+        return teacherRepository.findById(id)
+                .map(teacher -> {
+                    teacher.setName(teacherUpdated.getName());
+                    return teacherRepository.save(teacher);
+                }).orElseThrow(() -> new NotFoundException("Teacher not found with id " + id));
+    }
+
+    @DeleteMapping("/teacher/{id}")
+    public String deleteStudent(@PathVariable Long id) {
+        return teacherRepository.findById(id)
+                .map(teacher -> {
+                    teacherRepository.delete(teacher);
+                    return "Delete Successfully";
+                }).orElseThrow(() -> new NotFoundException("Teacher not found with id " + id));
+    }
+}
+```
+## Step 13
+Create own exceptions: NotFoundException and AlreadyExistsException.
+```java
+@SuppressWarnings("unused")
+@ResponseStatus(code = HttpStatus.CONFLICT, reason = "AlreadyExistsException already exists")
+public class AlreadyExistsException extends RuntimeException {
+    private static final long serialVersionUID = 1L;
+
+    public AlreadyExistsException(String message) {
+        super(message);
+    }
+
+    public AlreadyExistsException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}
+```
+Annotation @ResponseStatus allows to handle the exception and get the error code.
