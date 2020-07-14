@@ -557,3 +557,8 @@ public class AlreadyExistsException extends RuntimeException {
 }
 ```
 Annotation @ResponseStatus allows to handle the exception and get the error code.
+
+## Step 14 
+To simplify the development and management of PostgreSQL install a universal database tool [DBeaver](https://dbeaver.io/download/).
+
+The instruction about how to install  and to use DBeaver you can find [here](https://computingforgeeks.com/install-and-configure-dbeaver-on-ubuntu-debian/).
