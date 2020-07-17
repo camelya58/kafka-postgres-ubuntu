@@ -139,7 +139,7 @@ Password:
 ```
 Create a new database, which is going to be owned by root.
 ``` 
-$ sudo -u postgres createdb testdb -O user12
+$ sudo -u postgres createdb testdb -O root
 ```
 Restart PostgreSQL to enable the changes.
 ``` 
